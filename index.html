@@ -1,0 +1,577 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+ <HEAD>
+  <TITLE> Trái tim </TITLE>
+  <META NAME="Generator" CONTENT="EditPlus">
+  <META NAME="Author" CONTENT="">
+  <META NAME="Keywords" CONTENT="">
+  <META NAME="Description" CONTENT="">
+  <style>
+    #bg-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  min-width: 100%;
+  min-height: 100%;
+  z-index: -2;
+  object-fit: cover;
+}
+
+html, body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* Thêm dòng này để video nằm phía sau */
+}
+
+.chu{
+    /* Bạn có thể xóa color: rgb(214, 95, 182); nếu không muốn chữ có màu hồng mặc định */
+    padding-top: 20%;
+    text-align: center;
+}
+
+.sparkle-letter {
+    display: inline-block; /* Quan trọng để áp dụng transform và animation */
+    color: #ffffff; /* Màu chữ ban đầu (trắng) */
+    text-shadow: 0 0 5px #f47cf0, 0 0 10px #fff, 0 0 15px #0eab16, 0 0 20px #a0e9ff, 0 0 25px #ff7ae9, 0 0 30px #ff7ae9; /* Hiệu ứng neon/lấp lánh */
+    animation: sparkleAnimation 1.5s infinite alternate; /* Áp dụng animation */
+    font-size: 2.5em; /* Kích thước chữ to hơn để dễ thấy hiệu ứng */
+    font-weight: bold;
+    opacity: 0.8; /* Độ trong suốt ban đầu */
+}
+
+/* Định nghĩa animation lấp lánh */
+@keyframes sparkleAnimation {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #adcf14, 0 0 20px #e81111, 0 0 25px #16d443, 0 0 30px #ff7ae9;
+    }
+    50% {
+        transform: scale(1.05); /* Phóng to nhẹ */
+        opacity: 1; /* Sáng hơn */
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #a0e9ff, 0 0 40px #a0e9ff, 0 0 50px #ff7ae9, 0 0 60px #ff7ae9; /* Sáng hơn */
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #a0e9ff, 0 0 20px #a0e9ff, 0 0 25px #ff7ae9, 0 0 30px #ff7ae9;
+    }
+}
+
+  </style>
+ </HEAD>
+
+ <BODY>
+  <video autoplay muted loop id="bg-video">
+  <source src="images/galaxy.mp4" type="video/mp4">
+</video>
+<audio id="backgroundMusic">
+  <source src="music.mp3" type="audio/mpeg">
+  Trình duyệt của bạn không hỗ trợ phần tử audio.
+</audio>
+  <canvas id="pinkboard"></canvas>
+  <div id="sparkleText" class="chu">
+      <span class="sparkle-letter">H</span><span class="sparkle-letter">a</span><span class="sparkle-letter">p</span><span class="sparkle-letter">p</span><span class="sparkle-letter">y</span>
+      <span class="sparkle-letter"> </span>
+      <span class="sparkle-letter">A</span><span class="sparkle-letter">n</span><span class="sparkle-letter">n</span><span class="sparkle-letter">i</span><span class="sparkle-letter">v</span><span class="sparkle-letter">e</span><span class="sparkle-letter">r</span><span class="sparkle-letter">s</span><span class="sparkle-letter">a</span><span class="sparkle-letter">r</span><span class="sparkle-letter">y</span><br>
+      <span class="sparkle-letter">1</span>
+      <span class="sparkle-letter"> </span>
+      <span class="sparkle-letter">Y</span><span class="sparkle-letter">e</span><span class="sparkle-letter">a</span><span class="sparkle-letter">r</span>
+  </div>
+  <!-- Lời bài hát sẽ hiển thị tại đây -->
+<div id="lyrics-container" style="
+  position: absolute;
+  bottom: 10%;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  font-size: 1.8em;
+  font-weight: bold;
+  text-shadow: 0 0 5px #fff, 0 0 10px #f7a, 0 0 15px #f7a;
+  display: none;
+  z-index: 10;
+"></div>
+
+  <script>
+ /*
+ * Settings
+ */
+var settings = {
+  particles: {
+    length:   500, // maximum amount of particles
+    duration:   2, // particle duration in sec
+    velocity: 80, // particle velocity in pixels/sec
+    effect: -0.75, // play with this for a nice effect
+    size:     40, // particle size in pixels
+  },
+};
+
+const floatingImages = [];
+const imageLoadPromises = [];
+
+for (let i = 1; i <= 40; i++) {
+  const img = new Image();
+  img.src = `images/images${i}.png`;
+
+  // Tạo promise đợi ảnh load xong
+  const imgPromise = new Promise(resolve => {
+    img.onload = resolve;
+  });
+
+  imageLoadPromises.push(imgPromise);
+
+const size = 100 + Math.random() * 50;
+floatingImages.push({
+  img: img,
+  x: Math.random() * (window.innerWidth - size),
+  y: Math.random() * (window.innerHeight - size),
+  dx: (Math.random() - 0.5) * 2.5,
+  dy: (Math.random() - 0.5) * 2.5,
+  size: size
+});
+}
+
+/*
+ * Point class
+ */
+var Point = (function() {
+  function Point(x, y) {
+    this.x = (typeof x !== 'undefined') ? x : 0;
+    this.y = (typeof y !== 'undefined') ? y : 0;
+  }
+  Point.prototype.clone = function() {
+    return new Point(this.x, this.y);
+  };
+  Point.prototype.length = function(length) {
+    if (typeof length == 'undefined')
+      return Math.sqrt(this.x * this.x + this.y * this.y);
+    this.normalize();
+    this.x *= length;
+    this.y *= length;
+    return this;
+  };
+  Point.prototype.normalize = function() {
+    var length = this.length();
+    this.x /= length;
+    this.y /= length;
+    return this;
+  };
+  return Point;
+})();
+
+/*
+ * Particle class
+ */
+var Particle = (function() {
+  function Particle() {
+    this.position = new Point();
+    this.velocity = new Point();
+    this.acceleration = new Point();
+    this.age = 0;
+  }
+  Particle.prototype.initialize = function(x, y, dx, dy) {
+    this.position.x = x;
+    this.position.y = y;
+    this.velocity.x = dx;
+    this.velocity.y = dy;
+    this.acceleration.x = dx * settings.particles.effect;
+    this.acceleration.y = dy * settings.particles.effect;
+    this.age = 0;
+  };
+  Particle.prototype.update = function(deltaTime) {
+    this.position.x += this.velocity.x * deltaTime;
+    this.position.y += this.velocity.y * deltaTime;
+    this.velocity.x += this.acceleration.x * deltaTime;
+    this.velocity.y += this.acceleration.y * deltaTime;
+    this.age += deltaTime;
+  };
+Particle.prototype.draw = function(context, image) {
+  function ease(t) {
+    return (--t) * t * t + 1;
+  }
+
+  var sparkle = 0.6 + 0.4 * Math.sin(this.age * 20); // Nhấp nháy theo thời gian
+  var alpha = (1 - this.age / settings.particles.duration) * sparkle;
+
+  // **** THÊM HIỆU ỨNG ĐẬP CHO TRÁI TIM LỚN TẠI ĐÂY ****
+  // Sử dụng Math.sin để tạo hiệu ứng dao động (nhịp đập)
+  const beatStrength = 0.4; // Cường độ của nhịp đập (thay đổi kích thước bao nhiêu)
+  const beatSpeed = 4; // Tốc độ nhịp đập (lớn hơn = nhanh hơn)
+  const heartbeatScale = 1 + beatStrength * Math.sin(Date.now() * 0.001 * beatSpeed); // Tăng giảm kích thước theo thời gian
+
+  var size = image.width * ease(this.age / settings.particles.duration) * heartbeatScale; // Áp dụng hiệu ứng đập vào kích thước
+
+  context.globalAlpha = 0.95;
+  context.shadowColor = 'white';
+  context.shadowBlur = 0; // ánh sáng xung quanh hạt
+
+  context.drawImage(
+    image,
+    this.position.x - size / 2,
+    this.position.y - size / 2,
+    size,
+    size
+  );
+  context.shadowBlur = 0; // reset để tránh ảnh hưởng ảnh khác
+};
+  return Particle;
+})();
+
+/*
+ * ParticlePool class
+ */
+var ParticlePool = (function() {
+  var particles,
+      firstActive = 0,
+      firstFree   = 0,
+      duration    = settings.particles.duration;
+
+  function ParticlePool(length) {
+    // create and populate particle pool
+    particles = new Array(length);
+    for (var i = 0; i < particles.length; i++)
+      particles[i] = new Particle();
+  }
+  ParticlePool.prototype.add = function(x, y, dx, dy) {
+    particles[firstFree].initialize(x, y, dx, dy);
+
+    // handle circular queue
+    firstFree++;
+    if (firstFree   == particles.length) firstFree   = 0;
+    if (firstActive == firstFree      ) firstActive++;
+    if (firstActive == particles.length) firstActive = 0;
+  };
+  ParticlePool.prototype.update = function(deltaTime) {
+    var i;
+
+    // update active particles
+    if (firstActive < firstFree) {
+      for (i = firstActive; i < firstFree; i++)
+        particles[i].update(deltaTime);
+    }
+    if (firstFree < firstActive) {
+      for (i = firstActive; i < particles.length; i++)
+        particles[i].update(deltaTime);
+      for (i = 0; i < firstFree; i++)
+        particles[i].update(deltaTime);
+    }
+
+    // remove inactive particles
+    while (particles[firstActive].age >= duration && firstActive != firstFree) {
+      firstActive++;
+      if (firstActive == particles.length) firstActive = 0;
+    }
+
+  };
+  ParticlePool.prototype.draw = function(context, image) {
+    // draw active particles
+    if (firstActive < firstFree) {
+      for (i = firstActive; i < firstFree; i++)
+        particles[i].draw(context, image);
+    }
+    if (firstFree < firstActive) {
+      for (i = firstActive; i < particles.length; i++)
+        particles[i].draw(context, image);
+      for (i = 0; i < firstFree; i++)
+        particles[i].draw(context, image);
+    }
+  };
+  return ParticlePool;
+})();
+
+/*
+ * Putting it all together
+ */
+(function(canvas) {
+  var context = canvas.getContext('2d'),
+      particles = new ParticlePool(settings.particles.length),
+      particleRate = settings.particles.length / settings.particles.duration, // particles/sec
+      time;
+
+  // get point on heart with -PI <= t <= PI
+  function pointOnHeart(t) {
+    return new Point(
+      160 * Math.pow(Math.sin(t), 3),
+      130 * Math.cos(t) - 50 * Math.cos(2 * t) - 20 * Math.cos(3 * t) - 10 * Math.cos(4 * t) + 25
+    );
+  }
+
+  // creating the particle image using a dummy canvas
+var image = (function() {
+  var canvas  = document.createElement('canvas'),
+      context = canvas.getContext('2d');
+  canvas.width  = settings.particles.size;
+  canvas.height = settings.particles.size;
+
+  // Vẽ hình trái tim nhỏ làm hạt.
+  context.beginPath();
+  const s = settings.particles.size;
+  context.moveTo(s * 0.5, s * 0.2);
+  context.bezierCurveTo(s * 0.5, s * 0, s * 0.1, s * 0, s * 0.1, s * 0.4);
+  context.bezierCurveTo(s * 0.1, s * 0.7, s * 0.5, s * 0.9, s * 0.5, s * 1);
+  context.bezierCurveTo(s * 0.5, s * 0.9, s * 0.9, s * 0.7, s * 0.9, s * 0.4);
+  context.bezierCurveTo(s * 0.9, s * 0, s * 0.5, s * 0, s * 0.5, s * 0.2);
+  context.closePath();
+
+  // **Tạo gradient MỚI để mô phỏng hiệu ứng 3D cho hạt**
+  // Tập trung vào tạo vùng sáng (highlight) và vùng tối (shadow)
+  const gradient = context.createRadialGradient(
+    s * 0.35, s * 0.35, s * 0.05, // Tâm và bán kính cho highlight
+    s * 0.5, s * 0.5, s * 0.7 // Tâm và bán kính cho tổng thể
+  );
+  // Điều chỉnh các điểm dừng màu để tạo chiều sâu
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)'); // Highlight mạnh, gần như trắng tinh
+  gradient.addColorStop(0.1, 'rgba(255, 100, 100, 1)'); // Đỏ hồng sáng
+  gradient.addColorStop(0.3, 'rgba(255, 0, 0, 1)');     // Đỏ tươi trung tâm
+  gradient.addColorStop(0.7, 'rgba(180, 0, 0, 1)');     // Đỏ sẫm dần
+  gradient.addColorStop(1, 'rgba(100, 0, 0, 0.8)');     // Đỏ rất sẫm ở rìa
+
+  context.fillStyle = gradient;
+  context.fill();
+
+  // Thêm một lớp viền màu tối hoặc sáng nhẹ để tăng cảm giác nổi
+  context.strokeStyle = 'rgba(50, 0, 0, 0.5)'; // Màu viền tối
+  context.lineWidth = 0.5; // Độ dày viền
+  context.stroke();
+
+  // Tạo hiệu ứng lấp lánh nhỏ trên bề mặt trái tim (nếu muốn)
+  for (let i = 0; i < 3; i++) { // Chỉ 3 chấm nhỏ để không làm rối
+    const x = s * (0.4 + Math.random() * 0.2);
+    const y = s * (0.3 + Math.random() * 0.3);
+    const radius = Math.random() * 1; // Nhỏ hơn
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.fillStyle = 'rgba(255, 255, 255, 0.8)'; // Trắng sáng hơn
+    context.fill();
+  }
+
+  // **Thêm bóng đổ cho hạt để tăng chiều sâu**
+  context.shadowBlur = 5; // Độ mờ của bóng đổ
+  context.shadowColor = 'rgba(0, 0, 0, 0.5)'; // Màu bóng đổ đen đậm hơn
+  context.shadowOffsetX = 2; // Dịch chuyển bóng x
+  context.shadowOffsetY = 2; // Dịch chuyển bóng y
+  context.fill(); // Vẽ lại để áp dụng bóng đổ
+
+  // Xóa thiết lập bóng đổ để không ảnh hưởng đến các lần vẽ khác
+  context.shadowBlur = 0;
+  context.shadowColor = 'transparent';
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 0;
+
+  var image = new Image();
+  image.src = canvas.toDataURL();
+  return image;
+})();
+
+  // render that thing!
+  function render() {
+    // next animation frame
+    requestAnimationFrame(render);
+
+    // update time
+    var newTime   = new Date().getTime() / 1000,
+        deltaTime = newTime - (time || newTime);
+    time = newTime;
+
+    // clear canvas
+    context.clearRect(0, 0, canvas.width, canvas.height);
+   // Vẽ 2 ảnh bay quanh trái tim
+floatingImages.forEach(obj => {
+  obj.x += obj.dx;
+  obj.y += obj.dy;
+
+  // Xử lý va chạm biên
+  if (obj.x < 0) {
+    obj.x = 0;
+    obj.dx *= -1;
+  }
+  if (obj.x > canvas.realWidth - obj.size) {
+    obj.x = canvas.realWidth - obj.size;
+    obj.dx *= -1;
+  }
+  if (obj.y < 0) {
+    obj.y = 0;
+    obj.dy *= -1;
+  }
+  if (obj.y > canvas.realHeight - obj.size) { // Sử dụng realHeight thay vì height
+    obj.y = canvas.realHeight - obj.size;
+    obj.dy *= -1;
+  }
+
+  // ⬇️ Bắt đầu lưu trạng thái canvas
+  context.save();
+
+  // ⬇️ Di chuyển gốc tọa độ đến giữa ảnh
+  context.translate(obj.x + obj.size / 2, obj.y + obj.size / 2);
+
+  // **** THÊM/ĐIỀU CHỈNH HIỆU ỨNG LẤP LÁNH TẠI ĐÂY ****
+   // Hiệu ứng lấp lánh cho viền (shadow/glow effect)
+ const glowIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.008 + obj.x * 0.005 + obj.y * 0.005); // Tốc độ và biên độ lấp lánh
+ context.shadowBlur = 15 * glowIntensity; // Tăng độ mờ của bóng để tạo hiệu ứng phát sáng mạnh hơn
+ context.shadowColor = `rgba(255, 255, 255, ${glowIntensity * 1})`; // Màu sáng hồng/tím nhạt, độ trong suốt thay đổi
+
+ // Thêm một chút scale và rotate nhẹ để tạo hiệu ứng "sống động" và "nổi" hơn
+ const scaleEffect = 1 + 0.03 * Math.sin(Date.now() * 0.003 + obj.x * 0.002); // Tăng biên độ scale nhẹ
+ const rotateEffect = 0.03 * Math.sin(Date.now() * 0.0015 + obj.y * 0.001); // Tăng biên độ rotate nhẹ
+ context.scale(scaleEffect, scaleEffect);
+ context.rotate(rotateEffect);
+
+ // ⬇️ Vẽ hình trái tim làm khung (sẽ bị clip)
+ context.beginPath();
+ context.moveTo(0, 0 - obj.size / 5);
+ context.bezierCurveTo(
+   0, 0 - obj.size / 2.4,
+   -obj.size / 1.9, 0 - obj.size / 2.2,
+   -obj.size / 2.2, 0
+ );
+ context.bezierCurveTo(
+   -obj.size / 2.5, obj.size / 4.5,
+   0, obj.size / 2.5,
+   0, obj.size / 2
+ );
+ context.bezierCurveTo(
+   0, obj.size / 2.5,
+   obj.size / 2.5, obj.size / 4.5,
+   obj.size / 2.2, 0
+ );
+ context.bezierCurveTo(
+   obj.size / 1.9, -obj.size / 2.2,
+   0, -obj.size / 2.4,
+   0, -obj.size / 5
+ );
+ context.closePath();
+
+ // ⬇️ Cắt canvas theo hình trái tim
+ context.clip();
+
+ // ⬇️ Vẽ ảnh trong khu vực trái tim
+ context.drawImage(
+   obj.img,
+   -obj.size / 2, -obj.size / 2,
+   obj.size, obj.size
+ );
+// ⬇️ Vẽ viền trắng xung quanh hình trái tim
+context.beginPath();
+context.moveTo(0, 0 - obj.size / 5);
+context.bezierCurveTo(
+  0, 0 - obj.size / 2.4,
+  -obj.size / 1.9, 0 - obj.size / 2.2,
+  -obj.size / 2.2, 0
+);
+context.bezierCurveTo(
+  -obj.size / 2.5, obj.size / 4.5,
+  0, obj.size / 2.5,
+  0, obj.size / 2
+);
+context.bezierCurveTo(
+  0, obj.size / 2.5,
+  obj.size / 2.5, obj.size / 4.5,
+  obj.size / 2.2, 0
+);
+context.bezierCurveTo(
+  obj.size / 1.9, -obj.size / 2.2,
+  0, -obj.size / 2.4,
+  0, -obj.size / 5
+);
+context.closePath();
+context.lineWidth = 2; // Độ dày viền
+context.strokeStyle = 'white'; // Màu viền trắng
+context.stroke();
+ // ⬇️ Khôi phục lại canvas như cũ (QUAN TRỌNG: để reset transform và shadow)
+ context.restore();
+});
+    // create new particles
+    var amount = particleRate * deltaTime;
+    for (var i = 0; i < amount; i++) {
+      var pos = pointOnHeart(Math.PI - 2 * Math.PI * Math.random());
+      var dir = pos.clone().length(settings.particles.velocity);
+      particles.add(canvas.realWidth / 2 + pos.x, canvas.realHeight / 2 - pos.y, dir.x, -dir.y);
+    }
+
+    // update and draw particles
+    particles.update(deltaTime);
+    particles.draw(context, image);
+  }
+
+  // handle (re-)sizing of the canvas
+function onResize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.clientWidth * dpr;
+  canvas.height = canvas.clientHeight * dpr;
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.scale(dpr, dpr);
+  canvas.realWidth = canvas.clientWidth;
+  canvas.realHeight = canvas.clientHeight;
+}
+  window.onresize = onResize;
+
+  // delay rendering bootstrap
+Promise.all(imageLoadPromises).then(() => {
+  onResize(); // vẫn resize canvas như cũ
+  render();   // chỉ render khi tất cả ảnh đã load
+
+  // Thêm độ trễ ngẫu nhiên cho mỗi chữ cái để tạo hiệu ứng lấp lánh tự nhiên hơn
+  document.querySelectorAll('.sparkle-letter').forEach((letter, index) => {
+      letter.style.animationDelay = `${Math.random() * 1.5}s`; // Độ trễ ngẫu nhiên từ 0 đến 1.5 giây
+  });
+});
+})(document.getElementById('pinkboard'));
+const lyrics = [
+  "Được đứng bên em anh hạnh phúc tim loạn nhịp tung bay",
+  "Chắc chắn anh thề anh sẽ không bao giờ quên ngày hôm nay",
+  "Chính em chính em tương tư mình em thôi",
+  "Mãi theo sau mình em thôi",
+  "Mãi si mê mình em thôi",
+  "Mãi yêu thương mình em",
+  "Vậy thì anh xin chết vì người anh thương",
+  "Có biết bao nhiêu điều còn đang vấn vương",
+  "Dành cho em dành hết ân tình anh mang một đời",
+  "Đừng làm trái tim anh đau",
+  "Vậy thì anh xin chết vì người anh thương",
+  "Có biết bao nhiêu điều còn đang vấn vương",
+  "Dành cho em dành hết ân tình anh mang một đời",
+  "Đừng làm trái tim anh đau"
+];
+
+let isPlaying = false;
+
+const lyricsDurations = [
+  4775, 3885, 2870, 2348, 2083, 2177,
+  4444, 4347, 5190, 3489,
+  4469, 4355, 5160, 2566
+];
+
+function showLyrics(index = 0) {
+  const container = document.getElementById('lyrics-container');
+  if (index >= lyrics.length) return;
+  container.innerText = lyrics[index];
+  container.style.display = 'block';
+
+  setTimeout(() => {
+    showLyrics(index + 1);
+  }, lyricsDurations[index] || 3000);
+}
+
+// Kích hoạt nhạc và lời bài hát khi chạm vào màn hình
+document.addEventListener('click', () => {
+  if (!isPlaying) {
+    const music = document.getElementById('backgroundMusic');
+    music.play().catch(() => {
+      // Trường hợp autoplay bị chặn
+      alert("Hãy chạm lại để bắt đầu nhạc");
+    });
+    showLyrics(); // bắt đầu hiện lời
+    isPlaying = true;
+  }
+});
+  </script>
+ </BODY>
+</HTML>
